@@ -1,123 +1,93 @@
 /**
- * StratosHub SDK - Official TypeScript SDK for StratosHub AI Agent Platform
- * 
- * Provides comprehensive access to StratosHub's marketplace, agent management,
- * and smart contract functionality on the Solana blockchain.
- * 
- * @packageDocumentation
+ * StratosHub SDK
+ * TypeScript SDK for interacting with the StratosHub AI Agent Marketplace
  */
 
-export { StratosClient } from './client';
-export { AgentManager } from './agents';
-export { ContractManager } from './contracts';
-export { ModelManager } from './models';
+// Core client exports
+export { StratosHubClient } from './client/StratosHubClient';
+export { WalletAdapter } from './client/WalletAdapter';
+export { ProgramClient } from './client/ProgramClient';
 
-// Type exports
-export type {
-  StratosClientConfig,
-  StratosClientOptions,
-  Cluster,
-  Environment,
-} from './types/client';
+// Agent management exports
+export { AgentManager } from './managers/AgentManager';
+export { ExecutionManager } from './managers/ExecutionManager';
+export { MarketplaceManager } from './managers/MarketplaceManager';
+export { StakingManager } from './managers/StakingManager';
 
+// Type definitions
 export type {
   Agent,
-  AgentConfig,
-  AgentDeployment,
-  AgentExecution,
   AgentStatus,
-  ModelType,
-  ResourceRequirements,
-  ExecutionResult,
-  ExecutionStatus,
   AgentMetadata,
+  AgentExecution,
+  ExecutionStatus,
+  ExecutionResult,
+  ResourceRequirements,
   AgentCapability,
+  ModelType,
   PricingModel,
-  TriggerConfig,
-  WebhookTrigger,
-  ScheduleTrigger,
-  EventTrigger,
-} from './types/agents';
+} from './types/agent';
 
 export type {
-  MarketplaceState,
-  AgentAccount,
-  ExecutionRecord,
-  ProviderAccount,
-  DisputeRecord,
-  DisputeStatus,
-  DisputeResolution,
-} from './types/contracts';
+  MarketplaceConfig,
+  MarketplaceStats,
+  TradingPair,
+  OrderBook,
+  PriceHistory,
+  VolumeMetrics,
+} from './types/marketplace';
 
 export type {
-  Model,
-  ModelProvider,
-  ModelCategory,
-  ModelConfiguration,
-  InferenceOptions,
-  ModelMetrics,
-  ModelVersion,
-} from './types/models';
+  StakeAccount,
+  StakingPool,
+  RewardMetrics,
+  SlashingEvent,
+  UnbondingEntry,
+  StakingConfig,
+} from './types/staking';
 
 export type {
-  TransactionResult,
-  InstructionResult,
-  AccountInfo,
-  ProgramDeployment,
-  EventLog,
-  ErrorCode,
-  StratosError,
-} from './types/common';
+  Transaction,
+  TransactionStatus,
+  TransactionReceipt,
+  GasEstimate,
+  BlockchainConfig,
+  NetworkInfo,
+} from './types/blockchain';
+
+export type {
+  ApiResponse,
+  PaginatedResponse,
+  ErrorResponse,
+  SortOrder,
+  FilterOptions,
+  SearchOptions,
+} from './types/api';
 
 // Utility exports
-export { 
-  validateAgentConfig,
-  validateResourceRequirements,
-  validatePricingModel,
-} from './utils/validation';
-
-export {
-  formatLamports,
-  formatSOL,
-  parseLamports,
-  parseSOL,
-} from './utils/currency';
-
-export {
-  generateAgentId,
-  generateExecutionId,
-  hashData,
-  verifySignature,
-} from './utils/crypto';
-
-export {
-  createAgentMetadata,
-  uploadToIPFS,
-  downloadFromIPFS,
-} from './utils/metadata';
+export { formatSOL, parseSOL } from './utils/currency';
+export { validateAddress, validateSignature } from './utils/validation';
+export { retryWithBackoff, timeout } from './utils/async';
+export { createHash, verifyHash } from './utils/crypto';
+export { logger } from './utils/logger';
 
 // Constants
-export const PROGRAM_IDS = {
-  MARKETPLACE: 'StratosHub11111111111111111111111111111111',
-  ESCROW: 'StratosEscrow111111111111111111111111111111',
-  REGISTRY: 'StratosRegistry11111111111111111111111111111',
-  GOVERNANCE: 'StratosDAO1111111111111111111111111111111',
-} as const;
+export {
+  PROGRAM_IDS,
+  NETWORK_CONFIGS,
+  DEFAULT_RPC_ENDPOINTS,
+  TOKEN_ADDRESSES,
+  MARKETPLACE_CONSTANTS,
+} from './constants';
 
-export const CLUSTER_URLS = {
-  mainnet: 'https://api.mainnet-beta.solana.com',
-  devnet: 'https://api.devnet.solana.com',
-  testnet: 'https://api.testnet.solana.com',
-  localnet: 'http://localhost:8899',
-} as const;
+// Error classes
+export {
+  StratosHubError,
+  ValidationError,
+  NetworkError,
+  TransactionError,
+  ContractError,
+} from './errors';
 
-export const DEFAULT_CONFIG = {
-  commitment: 'confirmed' as const,
-  skipPreflight: false,
-  maxRetries: 3,
-  timeout: 30000,
-  confirmTransactionInitialTimeout: 60000,
-};
-
-// Version
-export const VERSION = '0.1.0'; 
+// Default export
+export { StratosHubClient as default } from './client/StratosHubClient'; 

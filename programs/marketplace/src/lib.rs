@@ -8,50 +8,72 @@ pub mod instructions;
 pub mod state;
 pub mod errors;
 pub mod events;
+pub mod utils;
 
 use instructions::*;
 use state::*;
 use errors::*;
+use events::*;
 
 #[program]
-pub mod stratoshub_marketplace {
+pub mod marketplace {
     use super::*;
 
-    /// Initialize the global marketplace state
-    pub fn initialize_marketplace(
-        ctx: Context<InitializeMarketplace>,
-        fee_basis_points: u16,
-        max_agents_per_user: u32,
+    /// Initialize the marketplace with configuration
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        authority: Pubkey,
+        treasury: Pubkey,
+        payment_mint: Pubkey,
+        platform_fee_bps: u16,
+        agent_registration_fee: u64,
+        min_price_per_execution: u64,
+        max_price_per_execution: u64,
+        max_agents_per_owner: u32,
+        min_stake_amount: u64,
+        dispute_window: i64,
     ) -> Result<()> {
-        instructions::initialize_marketplace(ctx, fee_basis_points, max_agents_per_user)
+        instructions::initialize::initialize(
+            ctx,
+            authority,
+            treasury,
+            payment_mint,
+            platform_fee_bps,
+            agent_registration_fee,
+            min_price_per_execution,
+            max_price_per_execution,
+            max_agents_per_owner,
+            min_stake_amount,
+            dispute_window,
+        )
     }
 
-    /// Register a new AI agent in the marketplace
-    pub fn register_agent(
-        ctx: Context<RegisterAgent>,
+    /// Register a new AI agent
+    pub fn create_agent(
+        ctx: Context<CreateAgent>,
         agent_id: String,
         name: String,
         description: String,
-        model_type: ModelType,
-        price_per_execution: u64,
+        model_type: String,
         metadata_uri: String,
+        price_per_execution: u64,
         capabilities: Vec<String>,
         resource_requirements: ResourceRequirements,
     ) -> Result<()> {
-        instructions::register_agent(
+        instructions::create_agent::create_agent(
             ctx,
             agent_id,
             name,
             description,
             model_type,
-            price_per_execution,
             metadata_uri,
+            price_per_execution,
             capabilities,
             resource_requirements,
         )
     }
 
-    /// Update agent metadata and pricing
+    /// Update existing agent configuration
     pub fn update_agent(
         ctx: Context<UpdateAgent>,
         price_per_execution: Option<u64>,
@@ -59,100 +81,181 @@ pub mod stratoshub_marketplace {
         is_active: Option<bool>,
         resource_requirements: Option<ResourceRequirements>,
     ) -> Result<()> {
-        instructions::update_agent(ctx, price_per_execution, metadata_uri, is_active, resource_requirements)
+        instructions::update_agent::update_agent(
+            ctx,
+            price_per_execution,
+            metadata_uri,
+            is_active,
+            resource_requirements,
+        )
     }
 
-    /// Execute an agent and process payment
+    /// Execute an AI agent
     pub fn execute_agent(
         ctx: Context<ExecuteAgent>,
         execution_id: String,
         input_data_hash: [u8; 32],
-        expected_output_hash: Option<[u8; 32]>,
+        max_gas: u64,
+        timeout: u32,
     ) -> Result<()> {
-        instructions::execute_agent(ctx, execution_id, input_data_hash, expected_output_hash)
+        instructions::execute_agent::execute_agent(
+            ctx,
+            execution_id,
+            input_data_hash,
+            max_gas,
+            timeout,
+        )
     }
 
-    /// Complete agent execution with result verification
+    /// Complete agent execution and record results
     pub fn complete_execution(
         ctx: Context<CompleteExecution>,
         execution_id: String,
         output_data_hash: [u8; 32],
         gas_used: u64,
+        execution_time: u64,
         success: bool,
     ) -> Result<()> {
-        instructions::complete_execution(ctx, execution_id, output_data_hash, gas_used, success)
+        instructions::complete_execution::complete_execution(
+            ctx,
+            execution_id,
+            output_data_hash,
+            gas_used,
+            execution_time,
+            success,
+        )
     }
 
-    /// Dispute an execution result
-    pub fn dispute_execution(
-        ctx: Context<DisputeExecution>,
+    /// Stake tokens for an agent
+    pub fn stake_agent(
+        ctx: Context<StakeAgent>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::stake_agent::stake_agent(ctx, amount)
+    }
+
+    /// Unstake tokens from an agent
+    pub fn unstake_agent(
+        ctx: Context<UnstakeAgent>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::unstake_agent::unstake_agent(ctx, amount)
+    }
+
+    /// Initialize escrow for agent execution
+    pub fn create_escrow(
+        ctx: Context<CreateEscrow>,
+        execution_id: String,
+        amount: u64,
+        timeout: i64,
+    ) -> Result<()> {
+        instructions::create_escrow::create_escrow(
+            ctx,
+            execution_id,
+            amount,
+            timeout,
+        )
+    }
+
+    /// Release escrow funds after successful execution
+    pub fn release_escrow(
+        ctx: Context<ReleaseEscrow>,
+        execution_id: String,
+    ) -> Result<()> {
+        instructions::release_escrow::release_escrow(ctx, execution_id)
+    }
+
+    /// Initiate dispute for failed execution
+    pub fn create_dispute(
+        ctx: Context<CreateDispute>,
         execution_id: String,
         dispute_reason: String,
         evidence_uri: String,
     ) -> Result<()> {
-        instructions::dispute_execution(ctx, execution_id, dispute_reason, evidence_uri)
+        instructions::create_dispute::create_dispute(
+            ctx,
+            execution_id,
+            dispute_reason,
+            evidence_uri,
+        )
     }
 
-    /// Resolve a disputed execution
+    /// Resolve dispute by authority
     pub fn resolve_dispute(
         ctx: Context<ResolveDispute>,
         execution_id: String,
         resolution: DisputeResolution,
         refund_percentage: u8,
     ) -> Result<()> {
-        instructions::resolve_dispute(ctx, execution_id, resolution, refund_percentage)
-    }
-
-    /// Stake tokens to become a verified agent provider
-    pub fn stake_provider(
-        ctx: Context<StakeProvider>,
-        amount: u64,
-    ) -> Result<()> {
-        instructions::stake_provider(ctx, amount)
-    }
-
-    /// Withdraw staked tokens (after cooldown period)
-    pub fn unstake_provider(
-        ctx: Context<UnstakeProvider>,
-        amount: u64,
-    ) -> Result<()> {
-        instructions::unstake_provider(ctx, amount)
-    }
-
-    /// Slash staked tokens for malicious behavior
-    pub fn slash_provider(
-        ctx: Context<SlashProvider>,
-        amount: u64,
-        reason: String,
-    ) -> Result<()> {
-        instructions::slash_provider(ctx, amount, reason)
-    }
-
-    /// Update marketplace configuration (admin only)
-    pub fn update_marketplace_config(
-        ctx: Context<UpdateMarketplaceConfig>,
-        fee_basis_points: Option<u16>,
-        max_agents_per_user: Option<u32>,
-        min_stake_amount: Option<u64>,
-        dispute_window: Option<i64>,
-    ) -> Result<()> {
-        instructions::update_marketplace_config(
+        instructions::resolve_dispute::resolve_dispute(
             ctx,
-            fee_basis_points,
-            max_agents_per_user,
-            min_stake_amount,
-            dispute_window,
+            execution_id,
+            resolution,
+            refund_percentage,
         )
     }
 
-    /// Emergency pause for security incidents
-    pub fn emergency_pause(ctx: Context<EmergencyPause>) -> Result<()> {
-        instructions::emergency_pause(ctx)
+    /// Update marketplace configuration (admin only)
+    pub fn update_config(
+        ctx: Context<UpdateConfig>,
+        platform_fee_bps: Option<u16>,
+        agent_registration_fee: Option<u64>,
+        min_price_per_execution: Option<u64>,
+        max_price_per_execution: Option<u64>,
+        max_agents_per_owner: Option<u32>,
+        min_stake_amount: Option<u64>,
+        dispute_window: Option<i64>,
+        is_paused: Option<bool>,
+    ) -> Result<()> {
+        instructions::update_config::update_config(
+            ctx,
+            platform_fee_bps,
+            agent_registration_fee,
+            min_price_per_execution,
+            max_price_per_execution,
+            max_agents_per_owner,
+            min_stake_amount,
+            dispute_window,
+            is_paused,
+        )
     }
 
-    /// Resume operations after emergency pause
-    pub fn resume_operations(ctx: Context<ResumeOperations>) -> Result<()> {
-        instructions::resume_operations(ctx)
+    /// Emergency pause marketplace
+    pub fn emergency_pause(ctx: Context<EmergencyPause>) -> Result<()> {
+        instructions::emergency_pause::emergency_pause(ctx)
+    }
+
+    /// Withdraw platform fees
+    pub fn withdraw_fees(
+        ctx: Context<WithdrawFees>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::withdraw_fees::withdraw_fees(ctx, amount)
+    }
+
+    /// Slash agent stake for malicious behavior
+    pub fn slash_stake(
+        ctx: Context<SlashStake>,
+        agent_id: String,
+        amount: u64,
+        reason: String,
+    ) -> Result<()> {
+        instructions::slash_stake::slash_stake(ctx, agent_id, amount, reason)
+    }
+
+    /// Migrate agent to new version
+    pub fn migrate_agent(
+        ctx: Context<MigrateAgent>,
+        agent_id: String,
+        new_metadata_uri: String,
+        new_resource_requirements: ResourceRequirements,
+    ) -> Result<()> {
+        instructions::migrate_agent::migrate_agent(
+            ctx,
+            agent_id,
+            new_metadata_uri,
+            new_resource_requirements,
+        )
     }
 }
 

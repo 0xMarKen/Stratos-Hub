@@ -1,0 +1,183 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'stratoshub-production'
+    environment: 'production'
+
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # StratosHub API Service
+  - job_name: 'stratoshub-api'
+    static_configs:
+      - targets: ['api:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: api:3001
+
+  # Agent Runtime Service
+  - job_name: 'agent-runtime'
+    static_configs:
+      - targets: ['agent-runtime:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        target_label: container_name
+
+  # Next.js Web Application
+  - job_name: 'stratoshub-web'
+    static_configs:
+      - targets: ['web:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Database
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+
+  # Redis Cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+
+  # MongoDB
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:27017']
+    metrics_path: '/metrics'
+
+  # Elasticsearch
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    metrics_path: '/_prometheus/metrics'
+    scrape_interval: 30s
+
+  # NGINX Load Balancer
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:9113']
+    metrics_path: '/metrics'
+
+  # Node Exporter (System Metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: 
+          - 'node-exporter-1:9100'
+          - 'node-exporter-2:9100'
+          - 'node-exporter-3:9100'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):(.*)'
+        target_label: instance
+        replacement: '${1}'
+
+  # cAdvisor (Container Metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 20s
+
+  # Docker Daemon
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-host:9323']
+    metrics_path: '/metrics'
+
+  # Solana RPC Node Metrics
+  - job_name: 'solana-rpc'
+    static_configs:
+      - targets: ['solana-rpc:8899']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # IPFS Node
+  - job_name: 'ipfs'
+    static_configs:
+      - targets: ['ipfs:5001']
+    metrics_path: '/debug/metrics/prometheus'
+    scrape_interval: 30s
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  # Custom Application Metrics
+  - job_name: 'stratoshub-agents'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['agent-runtime:8000']
+    metrics_path: '/api/v1/metrics/agents'
+    honor_labels: true
+
+  # Blockchain Metrics
+  - job_name: 'blockchain-metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['blockchain-monitor:9090']
+    metrics_path: '/metrics'
+
+  # Performance Testing
+  - job_name: 'performance-tests'
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+      - targets: ['performance-monitor:8080']
+    metrics_path: '/metrics'
+    honor_labels: true
+
+# Remote storage configuration (for long-term retention)
+remote_write:
+  - url: "https://prometheus-remote-storage.stratoshub.com/api/v1/write"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'go_.*'
+        action: drop
+
+# Recording rules for performance optimization
+recording_rules:
+  - interval: 30s
+    rules:
+      - record: stratoshub:api_request_duration_seconds:rate5m
+        expr: rate(http_request_duration_seconds[5m])
+      
+      - record: stratoshub:agent_execution_success_rate
+        expr: rate(agent_executions_success_total[5m]) / rate(agent_executions_total[5m])
+      
+      - record: stratoshub:agent_revenue_per_hour
+        expr: rate(agent_revenue_total[1h]) * 3600 
