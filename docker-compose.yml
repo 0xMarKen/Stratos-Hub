@@ -1,0 +1,340 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for API data
+  postgres:
+    image: postgres:15-alpine
+    container_name: stratoshub-postgres
+    environment:
+      POSTGRES_DB: stratoshub
+      POSTGRES_USER: stratoshub
+      POSTGRES_PASSWORD: stratoshub_dev_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stratoshub -d stratoshub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stratoshub-network
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: stratoshub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stratoshub-network
+
+  # MongoDB for agent metadata and logs
+  mongodb:
+    image: mongo:7
+    container_name: stratoshub-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: stratoshub_mongo_password
+      MONGO_INITDB_DATABASE: stratoshub
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./infrastructure/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stratoshub-network
+
+  # API Backend Service
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: stratoshub-api
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://stratoshub:stratoshub_dev_password@postgres:5432/stratoshub
+      REDIS_URL: redis://redis:6379
+      MONGODB_URL: mongodb://root:stratoshub_mongo_password@mongodb:27017/stratoshub?authSource=admin
+      JWT_SECRET: stratoshub_dev_jwt_secret_key_change_in_production
+      SOLANA_RPC_URL: https://api.devnet.solana.com
+      SOLANA_NETWORK: devnet
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - stratoshub-network
+
+  # Web Frontend Application
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: stratoshub-web
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_SOLANA_NETWORK: devnet
+      NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - stratoshub-network
+
+  # Agent Runtime Service
+  agent-runtime:
+    build:
+      context: ./services/agent-runtime
+      dockerfile: Dockerfile
+      target: development
+    container_name: stratoshub-agent-runtime
+    environment:
+      ENVIRONMENT: development
+      LOG_LEVEL: debug
+      REDIS_URL: redis://redis:6379
+      MONGODB_URL: mongodb://root:stratoshub_mongo_password@mongodb:27017/stratoshub?authSource=admin
+      SOLANA_RPC_URL: https://api.devnet.solana.com
+      MODEL_CACHE_DIR: /app/models
+      HUGGINGFACE_HUB_CACHE: /app/models/huggingface
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/agent-runtime:/app
+      - agent_models:/app/models
+      - agent_temp:/app/temp
+    depends_on:
+      - redis
+      - mongodb
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - stratoshub-network
+
+  # Model Server for ML inference
+  model-server:
+    build:
+      context: ./services/model-server
+      dockerfile: Dockerfile
+    container_name: stratoshub-model-server
+    environment:
+      ENVIRONMENT: development
+      MODEL_STORE: /models
+      INFERENCE_ADDRESS: http://0.0.0.0:7070
+      MANAGEMENT_ADDRESS: http://0.0.0.0:7071
+      METRICS_ADDRESS: http://0.0.0.0:8082
+    ports:
+      - "7070:7070" # Inference API
+      - "7071:7071" # Management API
+      - "8082:8082" # Metrics
+    volumes:
+      - model_store:/models
+      - ./services/model-server/config:/opt/ml/config
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+    networks:
+      - stratoshub-network
+
+  # IPFS for distributed storage
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: stratoshub-ipfs
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "4001:4001" # P2P port
+      - "5001:5001" # API port
+      - "8080:8080" # Gateway port
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - stratoshub-network
+
+  # Elasticsearch for logging and analytics
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: stratoshub-elasticsearch
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: false
+      xpack.security.enrollment.enabled: false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - stratoshub-network
+
+  # Kibana for log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: stratoshub-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - stratoshub-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: stratoshub-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - stratoshub-network
+
+  # Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: stratoshub-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: stratoshub_grafana_password
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3002:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - stratoshub-network
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: stratoshub-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686" # Web UI
+      - "14250:14250" # gRPC
+      - "14268:14268" # HTTP
+      - "6831:6831/udp" # UDP
+    networks:
+      - stratoshub-network
+
+  # MinIO for S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: stratoshub-minio
+    environment:
+      MINIO_ROOT_USER: stratoshub
+      MINIO_ROOT_PASSWORD: stratoshub_minio_password
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - stratoshub-network
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: stratoshub-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+      - api
+    networks:
+      - stratoshub-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongodb_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+  ipfs_data:
+  minio_data:
+  agent_models:
+  agent_temp:
+  model_store:
+
+networks:
+  stratoshub-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

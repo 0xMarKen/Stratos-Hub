@@ -1,0 +1,132 @@
+{
+  "name": "stratoshub",
+  "version": "0.1.0",
+  "description": "Enterprise-Grade AI Agent Infrastructure on Solana",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stratoshub/stratoshub.git"
+  },
+  "keywords": [
+    "solana",
+    "ai-agents",
+    "blockchain",
+    "smart-contracts",
+    "machine-learning",
+    "kubernetes",
+    "microservices",
+    "defi",
+    "web3"
+  ],
+  "author": "StratosHub Team",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "playwright test",
+    "test:load": "k6 run tests/load/load-test.js",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "setup:local": "scripts/setup-local.sh",
+    "deploy:devnet": "anchor build && anchor deploy --provider.cluster devnet",
+    "deploy:mainnet": "anchor build && anchor deploy --provider.cluster mainnet-beta",
+    "deploy:k8s:staging": "kubectl apply -f infrastructure/k8s/overlays/staging/",
+    "deploy:k8s:production": "kubectl apply -f infrastructure/k8s/overlays/production/",
+    "docker:build": "docker-compose build",
+    "docker:dev": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "k8s:apply": "kubectl apply -f infrastructure/k8s/base/",
+    "k8s:delete": "kubectl delete -f infrastructure/k8s/base/",
+    "security:audit": "npm audit && anchor test --features security",
+    "security:scan": "trivy fs . && semgrep --config=auto .",
+    "deps:check": "npm-check-updates -u",
+    "deps:update": "npm update && npm audit fix",
+    "infra:plan": "cd infrastructure/terraform && terraform plan",
+    "infra:apply": "cd infrastructure/terraform && terraform apply",
+    "infra:destroy": "cd infrastructure/terraform && terraform destroy",
+    "db:migrate": "npm run --workspace=apps/api db:migrate",
+    "db:seed": "npm run --workspace=apps/api db:seed",
+    "docs:build": "npm run --workspace=apps/docs build",
+    "docs:serve": "npm run --workspace=apps/docs serve",
+    "monitoring:up": "docker-compose -f infrastructure/monitoring/docker-compose.yml up -d",
+    "monitoring:down": "docker-compose -f infrastructure/monitoring/docker-compose.yml down",
+    "benchmark": "npm run --workspace=services/agent-runtime benchmark",
+    "generate:types": "npm run --workspace=packages/contracts generate:types",
+    "generate:docs": "typedoc --options typedoc.json",
+    "prepare": "husky install",
+    "precommit": "lint-staged",
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@commitlint/cli": "^18.6.0",
+    "@commitlint/config-conventional": "^18.6.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-security": "^2.1.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.4",
+    "semantic-release": "^22.0.12",
+    "turbo": "^1.12.0",
+    "typescript": "^5.3.3",
+    "playwright": "^1.41.2",
+    "k6": "^0.48.0",
+    "typedoc": "^0.25.7",
+    "npm-check-updates": "^16.14.12"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.87.6"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.rs": [
+      "rustfmt --edition 2021"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "release": {
+    "branches": [
+      "main",
+      "next"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github"
+    ]
+  }
+} 

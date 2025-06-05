@@ -1,0 +1,98 @@
+{
+  "name": "@stratoshub/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for StratosHub AI Agent Platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    },
+    "./agents": {
+      "types": "./dist/agents/index.d.ts",
+      "require": "./dist/agents/index.js",
+      "import": "./dist/agents/index.mjs"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "require": "./dist/contracts/index.js",
+      "import": "./dist/contracts/index.mjs"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build:watch": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .ts --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "type-check": "tsc --noEmit",
+    "docs": "typedoc --out docs src/index.ts",
+    "size": "size-limit",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.9",
+    "@stratoshub/contracts": "workspace:*",
+    "@stratoshub/common": "workspace:*",
+    "axios": "^1.6.7",
+    "eventemitter3": "^5.0.1",
+    "retry": "^0.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/jest": "^29.5.11",
+    "jest": "^29.7.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "typedoc": "^0.25.7",
+    "size-limit": "^11.0.2",
+    "@size-limit/preset-small-lib": "^11.0.2"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": ">=1.87.0"
+  },
+  "keywords": [
+    "solana",
+    "ai",
+    "agents",
+    "blockchain",
+    "sdk",
+    "typescript",
+    "web3",
+    "smart-contracts"
+  ],
+  "author": "StratosHub Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stratoshub/stratoshub.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/stratoshub/stratoshub/issues"
+  },
+  "homepage": "https://docs.stratoshub.io/sdk",
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "150 KB"
+    },
+    {
+      "path": "dist/index.mjs",
+      "limit": "150 KB"
+    }
+  ]
+} 

@@ -1,0 +1,246 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/.env",
+        "!**/.env.*",
+        "!**/coverage/**",
+        "!**/dist/**",
+        "!**/node_modules/**"
+      ],
+      "outputs": [
+        "dist/**",
+        "build/**",
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "env": [
+        "NODE_ENV",
+        "ENVIRONMENT",
+        "NEXT_PUBLIC_*",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "SOLANA_RPC_URL",
+        "SOLANA_NETWORK"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"],
+      "env": [
+        "NODE_ENV",
+        "PORT",
+        "NEXT_PUBLIC_*",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGODB_URL",
+        "JWT_SECRET",
+        "SOLANA_RPC_URL",
+        "SOLANA_NETWORK"
+      ]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/coverage/**",
+        "!**/dist/**",
+        "!**/node_modules/**"
+      ],
+      "outputs": [
+        "coverage/**",
+        "test-results/**"
+      ],
+      "env": [
+        "NODE_ENV",
+        "CI",
+        "DATABASE_URL",
+        "REDIS_URL"
+      ]
+    },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/coverage/**",
+        "!**/dist/**"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/coverage/**",
+        "!**/dist/**"
+      ],
+      "outputs": [
+        "coverage/**",
+        "test-results/**"
+      ],
+      "env": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGODB_URL",
+        "SOLANA_RPC_URL"
+      ]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/coverage/**",
+        "!**/dist/**",
+        "!**/test-results/**"
+      ],
+      "outputs": [
+        "test-results/**",
+        "playwright-report/**"
+      ],
+      "env": [
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_SOLANA_NETWORK"
+      ]
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/coverage/**"
+      ]
+    },
+    "lint:fix": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/coverage/**"
+      ],
+      "cache": false
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/coverage/**"
+      ]
+    },
+    "format": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/coverage/**"
+      ],
+      "cache": false
+    },
+    "format:check": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/coverage/**"
+      ]
+    },
+    "clean": {
+      "cache": false
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "db:migrate": {
+      "cache": false,
+      "env": [
+        "DATABASE_URL"
+      ]
+    },
+    "db:seed": {
+      "cache": false,
+      "env": [
+        "DATABASE_URL"
+      ]
+    },
+    "db:generate": {
+      "inputs": [
+        "prisma/schema.prisma"
+      ],
+      "outputs": [
+        "generated/**"
+      ]
+    },
+    "deploy": {
+      "dependsOn": ["build", "test"],
+      "cache": false,
+      "env": [
+        "DEPLOY_ENV",
+        "VERCEL_TOKEN",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY"
+      ]
+    },
+    "storybook": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "build-storybook": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/node_modules/**"
+      ],
+      "outputs": [
+        "storybook-static/**"
+      ]
+    },
+    "docs": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/node_modules/**"
+      ],
+      "outputs": [
+        "docs/**"
+      ]
+    },
+    "benchmark": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": [
+        "BENCHMARK_ENV"
+      ]
+    },
+    "security:audit": {
+      "cache": false
+    },
+    "security:scan": {
+      "cache": false
+    }
+  },
+  "globalDependencies": [
+    "**/.env",
+    "**/.env.*",
+    "turbo.json",
+    "package.json"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "VERCEL",
+    "GITHUB_ACTIONS"
+  ]
+} 
